@@ -1,0 +1,13 @@
+# Heavy / generated — keep Cursor indexing fast
+node_modules/
+.local-node/
+dist/
+*.tsbuildinfo
+
+# Large media (skip from agent context)
+public/images/*.mp4
+public/draco/
+public/models/
+
+# Lockfile noise
+package-lock.json
