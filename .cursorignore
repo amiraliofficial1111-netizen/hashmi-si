@@ -4,10 +4,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Large media (skip from agent context)
-public/images/*.mp4
+# Legacy 3D paths
 public/draco/
 public/models/
 
 # Lockfile noise
 package-lock.json
+

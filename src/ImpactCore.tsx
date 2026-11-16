@@ -61,15 +61,15 @@ export default function ImpactCore() {
       speed: 0.18 + (i % 4) * 0.04,
     }));
 
-    const dust = Array.from({ length: 48 }, (_, i) => ({
-      a: (i / 48) * Math.PI * 2,
+    const dust = Array.from({ length: 28 }, (_, i) => ({
+      a: (i / 28) * Math.PI * 2,
       r: 0.18 + (i % 7) * 0.07,
       s: 0.8 + (i % 4) * 0.4,
       speed: 0.05 + (i % 5) * 0.02,
     }));
 
     const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       width = root.clientWidth;
       height = root.clientHeight;
       canvas.width = Math.max(1, Math.floor(width * dpr));
@@ -86,9 +86,8 @@ export default function ImpactCore() {
     };
 
     const draw = (now: number) => {
-      if (!running) return;
+      if (!running || !playing) return;
       frame = requestAnimationFrame(draw);
-      if (!playing) return;
 
       const t = now * 0.001;
       const ptr = pointer.current;
@@ -292,7 +291,12 @@ export default function ImpactCore() {
     resizeObserver.observe(root);
     const visibility = new IntersectionObserver(
       ([entry]) => {
+        const was = playing;
         playing = entry.isIntersecting;
+        if (playing && !was) {
+          cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(draw);
+        }
       },
       { threshold: 0.08 },
     );

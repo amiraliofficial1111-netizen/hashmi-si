@@ -1,55 +1,36 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
-import HeroSpiral from "./HeroSpiral";
-import ImpactCore from "./ImpactCore";
-import LayerCluster from "./LayerCluster";
-import LayerVisual from "./LayerVisual";
-import CapVisual from "./CapVisual";
+import { FormEvent, lazy, Suspense, useEffect, useState } from "react";
+import HeroBrain from "./HeroBrain";
 import Mark from "./Mark";
 import SignalIcon from "./SignalIcon";
-import { createBed, type Bed } from "./audioBed";
-import { approach, budgets, disciplines, impact, interests, method, signals } from "./content";
+import { LazyWhenVisible } from "./LazyWhenVisible";
+import { advancedStack, approach, budgets, disciplines, impact, interests, method, signals } from "./content";
 import { runCount } from "./runCount";
 import "./styles/cinematic.css";
 
+const ImpactCore = lazy(() => import("./ImpactCore"));
+const LayerCluster = lazy(() => import("./LayerCluster"));
+const LayerVisual = lazy(() => import("./LayerVisual"));
+const CapVisual = lazy(() => import("./CapVisual"));
+
 export default function CinematicApp() {
-  const bedRef = useRef<Bed | null>(null);
-  const enterRef = useRef<HTMLButtonElement>(null);
-  const [phase, setPhase] = useState<"gate" | "leaving" | "live">("gate");
-  const [sound, setSound] = useState(false);
   const [solid, setSolid] = useState(false);
   const [menu, setMenu] = useState(false);
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
-    if (phase === "gate") enterRef.current?.focus();
-  }, [phase]);
-
-  useEffect(() => () => bedRef.current?.stop(), []);
-
-  useEffect(() => {
+    let ticking = false;
     const onScroll = () => {
-      setSolid(window.scrollY > 20);
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        setSolid(window.scrollY > 20);
+        ticking = false;
+      });
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  useEffect(() => {
-    const onMove = (event: PointerEvent) => {
-      if (phase === "gate") {
-        const gate = document.querySelector<HTMLElement>(".gate");
-        if (gate) {
-          const px = (event.clientX / window.innerWidth - 0.5) * 14;
-          const py = (event.clientY / window.innerHeight - 0.5) * 10;
-          gate.style.setProperty("--gx", `${px}px`);
-          gate.style.setProperty("--gy", `${py}px`);
-        }
-      }
-    };
-    window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
-  }, [phase]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -61,14 +42,19 @@ export default function CinematicApp() {
           observer.unobserve(entry.target);
         });
       },
-      { threshold: 0.08 },
+      { threshold: 0.08, rootMargin: "0px 0px -8% 0px" },
     );
+    let scheduled = 0;
     const watch = () => {
-      document.querySelectorAll<HTMLElement>(".reveal:not(.is-in)").forEach((node) => {
-        const group = node.parentElement?.querySelectorAll(":scope > .reveal");
-        const index = group ? Array.from(group).indexOf(node) : 0;
-        if (index > 0 && !node.style.transitionDelay) node.style.transitionDelay = `${index * 90}ms`;
-        observer.observe(node);
+      if (scheduled) return;
+      scheduled = requestAnimationFrame(() => {
+        scheduled = 0;
+        document.querySelectorAll<HTMLElement>(".reveal:not(.is-in)").forEach((node) => {
+          const group = node.parentElement?.querySelectorAll(":scope > .reveal");
+          const index = group ? Array.from(group).indexOf(node) : 0;
+          if (index > 0 && !node.style.transitionDelay) node.style.transitionDelay = `${index * 90}ms`;
+          observer.observe(node);
+        });
       });
     };
     watch();
@@ -76,15 +62,15 @@ export default function CinematicApp() {
     const changes = new MutationObserver(watch);
     if (root) changes.observe(root, { childList: true, subtree: true });
     return () => {
+      if (scheduled) cancelAnimationFrame(scheduled);
       observer.disconnect();
       changes.disconnect();
     };
-  }, [phase]);
+  }, []);
 
   useEffect(() => {
-    if (phase !== "live") return;
     document.querySelectorAll<HTMLElement>(".hud [data-count]").forEach(runCount);
-  }, [phase]);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = menu ? "hidden" : "";
@@ -92,24 +78,6 @@ export default function CinematicApp() {
       document.body.style.overflow = "";
     };
   }, [menu]);
-
-  function armSound(enabled: boolean) {
-    if (!enabled) {
-      bedRef.current?.setLevel(0);
-      setSound(false);
-      return;
-    }
-    if (!bedRef.current) bedRef.current = createBed();
-    bedRef.current?.setLevel(1);
-    setSound(true);
-  }
-
-  function enter(withSound: boolean) {
-    if (phase === "leaving" || phase === "live") return;
-    armSound(withSound);
-    setPhase("leaving");
-    window.setTimeout(() => setPhase("live"), 720);
-  }
 
   function closeMenu() {
     setMenu(false);
@@ -135,7 +103,7 @@ export default function CinematicApp() {
   }
 
   return (
-    <div className={`hx${phase === "live" ? "" : " is-locked"}`}>
+    <div className="hx">
       <header className={`topbar${solid ? " is-solid" : ""}${menu ? " is-open" : ""}`}>
         <a className="brand" href="#top" onClick={closeMenu}>
           <Mark />
@@ -165,31 +133,32 @@ export default function CinematicApp() {
       <main>
         <section className="hero" id="top">
           <div className="hero-stage">
-            <div className="hero-copy">
-              <p className="eyebrow">Intelligence for the next era</p>
-              <h1>Intelligence,<br /><em>beautifully</em><br />engineered.</h1>
-              <p className="lede">
-                AI-native products and intelligent systems for ambitious businesses—built to move faster, operate smarter, and lead what&apos;s next.
-              </p>
-              <div className="hero-actions">
-                <a className="btn btn-fill" href="#start">Build with us</a>
-                <a className="btn btn-line" href="#capabilities">See capabilities</a>
-              </div>
+            <div className="hero-side">
+              <div id="hero-card-slot" />
             </div>
 
             <div className="hero-visual">
-              <p className="hero-mark">
-                <span>Hashmi SI</span>
-                Karachi · Dubai · Global
+              <HeroBrain />
+            </div>
+          </div>
+
+          <div className="hero-banner">
+            <div className="hero-banner__copy">
+              <h1>Autonomous AI agents built for <em>scale.</em></h1>
+              <p className="lede">
+                Intelligent workflow automation and enterprise AI integration—agents that plan, act across your tools, and finish the work.
               </p>
-              <HeroSpiral />
+            </div>
+            <div className="hero-actions">
+              <a className="btn btn-fill" href="#start">Start a project</a>
+              <a className="btn btn-line" href="#capabilities">Explore Capabilities</a>
             </div>
           </div>
 
           <div className="hero-rail">
-            <p><span>01</span><strong>Private systems</strong><em>Your data stays in your control.</em></p>
-            <p><span>02</span><strong>Human-led</strong><em>Strategy before software.</em></p>
-            <p><span>03</span><strong>Global</strong><em>Selective engagement. Production delivery.</em></p>
+            <p><span>01</span><strong>Agentic systems</strong><em>Multi-agent workflows that finish the job.</em></p>
+            <p><span>02</span><strong>Private by design</strong><em>Your data stays in your control.</em></p>
+            <p><span>03</span><strong>Production global</strong><em>Karachi · Dubai · selective delivery.</em></p>
             <a className="scroll-cue" href="#thinking">Scroll <i /></a>
           </div>
         </section>
@@ -260,7 +229,11 @@ export default function CinematicApp() {
                 <h2>From intelligence<br /><em>to impact.</em></h2>
                 <p>We turn complex challenges into intelligent solutions with AI-powered systems, data-driven insights and scalable technology — built for real business impact.</p>
               </div>
-              <ImpactCore />
+              <LazyWhenVisible minHeight={360} className="impact-core-slot">
+                <Suspense fallback={null}>
+                  <ImpactCore />
+                </Suspense>
+              </LazyWhenVisible>
               <aside className="impact-rail reveal">
                 <p>AI-powered<br />intelligence systems</p>
                 <small>Data + Models + Automation</small>
@@ -269,6 +242,7 @@ export default function CinematicApp() {
                   <li><a href="#cap-agentic"><span>02</span> AI Systems</a></li>
                   <li><a href="#cap-enterprise"><span>03</span> Enterprise</a></li>
                   <li><a href="#cap-products"><span>04</span> Products</a></li>
+                  <li><a href="#ai-stack"><span>05</span> Advanced</a></li>
                 </ol>
               </aside>
             </div>
@@ -280,7 +254,11 @@ export default function CinematicApp() {
                     <span>{item.index}</span>
                     <em>{item.badge}</em>
                   </header>
-                  <CapVisual index={item.index} />
+                  <LazyWhenVisible minHeight={160}>
+                    <Suspense fallback={<div className="cap-visual" aria-hidden="true" />}>
+                      <CapVisual index={item.index} />
+                    </Suspense>
+                  </LazyWhenVisible>
                   <h3>{item.title}</h3>
                   <p>{item.copy}</p>
                   <ul>
@@ -288,6 +266,24 @@ export default function CinematicApp() {
                   </ul>
                 </article>
               ))}
+            </div>
+
+            <div className="ai-stack reveal" id="ai-stack">
+              <header className="ai-stack__head">
+                <p className="kicker">Advanced AI</p>
+                <h3>Intelligence that <em>acts.</em></h3>
+                <p>Secure agents, private knowledge, measurable outcomes.</p>
+              </header>
+              <ol className="ai-stack__rail">
+                {advancedStack.map((item) => (
+                  <li key={item.index}>
+                    <span className="ai-stack__index">{item.index}</span>
+                    <em>{item.label}</em>
+                    <strong>{item.title}</strong>
+                    <p>{item.copy}</p>
+                  </li>
+                ))}
+              </ol>
             </div>
 
             <div className="impact-foot">
@@ -329,7 +325,11 @@ export default function CinematicApp() {
                 </div>
               </div>
               <div className="layer-cluster">
-                <LayerCluster />
+                <LazyWhenVisible minHeight={360}>
+                  <Suspense fallback={null}>
+                    <LayerCluster />
+                  </Suspense>
+                </LazyWhenVisible>
                 <p className="layer-tag tag-ai"><b>Stack</b><small>Connected layers</small></p>
                 <p className="layer-tag tag-data"><b>Flow</b><small>Live intelligence</small></p>
                 <p className="layer-tag tag-cloud"><b>Scale</b><small>Compound growth</small></p>
@@ -355,7 +355,11 @@ export default function CinematicApp() {
                       {group.items.map((item) => <li key={item}>{item}</li>)}
                     </ul>
                   </div>
-                  <LayerVisual index={group.index} />
+                  <LazyWhenVisible minHeight={140}>
+                    <Suspense fallback={null}>
+                      <LayerVisual index={group.index} />
+                    </Suspense>
+                  </LazyWhenVisible>
                 </article>
               ))}
             </div>
@@ -509,36 +513,6 @@ export default function CinematicApp() {
         </div>
       </footer>
 
-      {phase !== "live" && (
-        <div
-          className={`gate${phase === "leaving" ? " is-leaving" : ""}${phase === "gate" ? " is-ready" : ""}`}
-        >
-          <div className="gate-shapes" aria-hidden="true">
-            <span className="gate-shape gate-shape--a" />
-            <span className="gate-shape gate-shape--b" />
-            <span className="gate-shape gate-shape--c" />
-          </div>
-
-          <div className="gate-center">
-            <p className="gate-logo" aria-label="Hashmi SI">
-              <span className="gate-logo__hashmi">Hashmi</span>
-              <span className="gate-logo__si">.SI</span>
-            </p>
-
-            <button ref={enterRef} type="button" className="enter" onClick={() => enter(true)}>
-              Enter experience
-            </button>
-          </div>
-
-          <button type="button" className="skip" onClick={() => enter(false)}>
-            Continue without sound
-          </button>
-
-          <p className="note">
-            Optional ambient audio. Enable sound for the full atmosphere.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
