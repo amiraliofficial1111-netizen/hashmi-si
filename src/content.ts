@@ -52,6 +52,40 @@ export const impact = [
   },
 ];
 
+/** Advanced AI functions — cinematic stack under Capabilities */
+export const advancedStack = [
+  {
+    index: "01",
+    label: "Agent fleets",
+    title: "Multi-agent orchestration",
+    copy: "Agents that plan, hand off, and finish workflows end-to-end.",
+  },
+  {
+    index: "02",
+    label: "Private memory",
+    title: "Private RAG & knowledge",
+    copy: "Your docs and data become answers that stay inside your perimeter.",
+  },
+  {
+    index: "03",
+    label: "System actions",
+    title: "Tool-using agents",
+    copy: "CRM, email, ERP, Slack — agents that do work, not only chat.",
+  },
+  {
+    index: "04",
+    label: "Trust layer",
+    title: "Guardrails & evaluation",
+    copy: "Quality, safety, and audit trails before anything goes live.",
+  },
+  {
+    index: "05",
+    label: "Your model",
+    title: "Domain & fine-tuned models",
+    copy: "Industry language, your SOPs, your competitive edge.",
+  },
+] as const;
+
 export const disciplines = [
   {
     index: "01",

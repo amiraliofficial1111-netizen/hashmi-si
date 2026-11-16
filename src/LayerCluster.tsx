@@ -71,8 +71,8 @@ export default function LayerCluster() {
       xOff: ((i % 7) - 3) * 0.04,
     }));
 
-    const dust = Array.from({ length: 36 }, (_, i) => ({
-      a: (i / 36) * Math.PI * 2,
+    const dust = Array.from({ length: 22 }, (_, i) => ({
+      a: (i / 22) * Math.PI * 2,
       r: 0.12 + (i % 6) * 0.05,
       y: 0.2 + (i % 8) * 0.07,
       s: 0.7 + (i % 4) * 0.35,
@@ -80,7 +80,7 @@ export default function LayerCluster() {
     }));
 
     const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       width = root.clientWidth;
       height = root.clientHeight;
       canvas.width = Math.max(1, Math.floor(width * dpr));
@@ -97,9 +97,8 @@ export default function LayerCluster() {
     };
 
     const draw = (now: number) => {
-      if (!running) return;
+      if (!running || !playing) return;
       frame = requestAnimationFrame(draw);
-      if (!playing) return;
 
       const t = now * 0.001;
       const ptr = pointer.current;
@@ -314,7 +313,12 @@ export default function LayerCluster() {
     resizeObserver.observe(root);
     const visibility = new IntersectionObserver(
       ([entry]) => {
+        const was = playing;
         playing = entry.isIntersecting;
+        if (playing && !was) {
+          cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(draw);
+        }
       },
       { threshold: 0.08 },
     );
